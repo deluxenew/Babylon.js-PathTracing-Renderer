@@ -77,8 +77,8 @@ let uRandomVec2 = new BABYLON.Vector2(); // used to offset the texture UV when s
 let uTime = 0.0; // elapsed time in seconds since the app started
 let uFrameCounter = 1.0; // 1 instead of 0 because it is used as a rng() seed in pathtracing shader
 let uSampleCounter = 0.0; // will get increased by 1 in animation loop before rendering
-let uOneOverSampleCounter = 0.0; // the sample accumulation buffer gets multiplied by this reciprocal of SampleCounter, for averaging final pixel color 
-let uPreviousSampleCount = 0.0; // records the previous frame's sample count, so that if the camera moves after being still, it can multiply the current frame by the reciprocal (1/SamplesCount) 
+let uOneOverSampleCounter = 0.0; // the sample accumulation buffer gets multiplied by this reciprocal of SampleCounter, for averaging final pixel color
+let uPreviousSampleCount = 0.0; // records the previous frame's sample count, so that if the camera moves after being still, it can multiply the current frame by the reciprocal (1/SamplesCount)
 let uULen = 1.0; // rendering pixel horizontal scale, related to camera's FOV and aspect ratio
 let uVLen = 1.0; // rendering pixel vertical scale, related to camera's FOV
 let uCameraIsMoving = false; // lets the path tracer know if the camera is being moved
@@ -88,16 +88,15 @@ let uEdgeSharpenSpeed = 0.05; // applies to edges only - how fast is the blur fi
 let uFilterDecaySpeed = 0.0002; // applies to entire image(edges and non-edges alike) - how fast should the blur filter go away for the entire image?
 
 // scene/demo-specific variables
-let sphereRadius = 16;
 let wallRadius = 50;
-let leftSphereTransformNode;
-let rightSphereTransformNode;
 let gltfModelTransformNode;
 let modelUniformScale;
 let modelNameAndExtension = "";
-let containerMeshes = [];
+let modelNameAndExtension2 = "";
+// let containerMeshes = [];
 let pathTracedMesh;
-let modelInitialScale = 1;
+let pathTracedMesh2;
+let modelInitialScale = 0.04;
 let total_number_of_triangles = 0;
 let totalWork;
 let albedoTexture, bumpTexture, metallicTexture, emissiveTexture;
@@ -206,7 +205,7 @@ function handleWindowResize()
 function init_GUI()
 {
 	pixel_ResolutionObject = {
-		pixel_Resolution: 0.75
+		pixel_Resolution: 1
 	}
 
 	gltfModel_SelectionObject = {
@@ -218,7 +217,7 @@ function init_GUI()
 	};
 
 	quadLight_RadiusObject = {
-		QuadLight_Radius: 50
+		QuadLight_Radius: 113
 	}
 
 	model_MaterialObject = {
@@ -235,16 +234,16 @@ function init_GUI()
 		translateZ: 0
 	}
 	transform_ScaleUniformObject = {
-		uniformScale: 1
+		uniformScale: 0.04
 	}
 	transform_ScaleXObject = {
-		scaleX: 1
+		scaleX: 0.04
 	}
 	transform_ScaleYObject = {
-		scaleY: 1
+		scaleY: 0.04
 	}
 	transform_ScaleZObject = {
-		scaleZ: 1
+		scaleZ: 0.04
 	}
 	// transform_SkewX_YObject = {
 	//         skewX_Y: 0
@@ -365,7 +364,7 @@ function init_GUI()
 init_GUI();
 
 
-// setup the frame rate display (FPS) in the top-left corner 
+// setup the frame rate display (FPS) in the top-left corner
 container = document.getElementById('container');
 
 stats = new Stats();
@@ -392,8 +391,9 @@ pathTracingScene.onPointerDown = evt =>
 }
 
 // Add a camera to the scene and attach it to the canvas
-camera = new BABYLON.UniversalCamera("Camera", new BABYLON.Vector3(), pathTracingScene);
+camera = new BABYLON.UniversalCamera("Camera",new BABYLON.Vector3(10, 22, 20), pathTracingScene);
 camera.attachControl(canvas, true);
+
 
 uVLen = Math.tan(camera.fov * 0.5);
 uULen = uVLen * (engine.getRenderWidth() / engine.getRenderHeight());
@@ -401,26 +401,48 @@ uULen = uVLen * (engine.getRenderWidth() / engine.getRenderHeight());
 
 // Load in the model either in glTF or glb format  /////////////////////////////////////////////////////
 
-modelNameAndExtension = "UtahTeapot.glb";
+modelNameAndExtension = "CityT-100_1000x600.glb";
 modelInitialScale = 130;
 
 
-function loadModel()
+function loadModel(name)
 {
-	BABYLON.SceneLoader.LoadAssetContainer("models/", modelNameAndExtension, pathTracingScene, function (container)
+	BABYLON.SceneLoader.Append("../models/", "CityT-100_1000x600.glb", pathTracingScene, function (container)
+	// BABYLON.SceneLoader.LoadAssetContainer("models/", name, pathTracingScene, function (container)
 	{
+		console.log(container)
 		// clear out the mesh object and array
 		pathTracedMesh = null;
-		containerMeshes = [];
+		var containerMeshes = [];
 		albedoTexture = bumpTexture = metallicTexture = emissiveTexture = null;
 		uModelUsesAlbedoTexture = uModelUsesBumpTexture =
 			uModelUsesMetallicTexture = uModelUsesEmissiveTexture = false;
 
-		console.log("Model file name: " + modelNameAndExtension);
+		console.log("Model file name: " + name);
 		console.log("number of meshes found in original gltf/glb file: " + container.meshes.length);
-
+		var light = new BABYLON.DirectionalLight("dir01", new BABYLON.Vector3(-1, -1, -1), pathTracingScene);
+		light.position = new BABYLON.Vector3(1, 20, 5);
+		light.intensity = 1;
+		container.meshes[0].position.set(-2, -6.5, -6.5)
 		for (let i = 0; i < container.meshes.length; i++)
 		{
+			console.log(container.meshes[i])
+			var obj = container.meshes[i]
+			if (obj.material) {
+				// console.log(obj.material)
+				var pbr = new BABYLON.PBRMaterial("pbr", pathTracingScene)
+
+				pbr.metallic = 0;
+				pbr.roughness = 0.5;
+				// //
+				pbr.clearCoat.isEnabled = true;
+				//
+				pbr.clearCoat.isTintEnabled = true;
+				pbr.clearCoat.tintColor = BABYLON.Color3.White();
+				pbr.clearCoat.tintColorAtDistance = 1;
+				pbr.clearCoat.tintThickness = 1.5;
+				obj.material = pbr
+			}
 			if (container.meshes[i].geometry)
 			{
 				containerMeshes.push(container.meshes[i]);
@@ -479,12 +501,13 @@ function loadModel()
 			emissiveTexture = pathTracedMesh.material.emissiveTexture;
 			uModelUsesEmissiveTexture = true;
 		}
-			
 
-		// now that the model is loaded and converted to our desired representation, we can start building an AABB around each triangle, 
-		//  and then send this list of AABBs to the BVH builder function.  Finally, 2 GPU data textures will be created which hold the 
+
+		// now that the model is loaded and converted to our desired representation, we can start building an AABB around each triangle,
+		//  and then send this list of AABBs to the BVH builder function.  Finally, 2 GPU data textures will be created which hold the
 		//   compact BVH tree in one texture (for efficient GPU ray-BVH traversal), and all triangle vertex data (for quick GPU look-up) in the other texture.
 		Prepare_Model_For_PathTracing();
+
 	});
 } // end function loadModel()
 
@@ -519,7 +542,7 @@ function Prepare_Model_For_PathTracing()
 	let vna = new Float32Array(pathTracedMesh.getVerticesData("normal"));
 	let vta = null;
 	let modelHasUVs = false;
-	// is the following a valid way to check if the model has vertex UVs? 
+	// is the following a valid way to check if the model has vertex UVs?
 	if (pathTracedMesh.getVerticesDataKinds().length == 3)
 	{
 		vta = new Float32Array(pathTracedMesh.getVerticesData("uv"));
@@ -547,14 +570,14 @@ function Prepare_Model_For_PathTracing()
 		}
 
 		// record vertex normals
-		vn0.set(vna[9 * i + 0], vna[9 * i + 1], vna[9 * i + 2]); 
-		vn2.set(vna[9 * i + 3], vna[9 * i + 4], vna[9 * i + 5]); 
+		vn0.set(vna[9 * i + 0], vna[9 * i + 1], vna[9 * i + 2]);
+		vn2.set(vna[9 * i + 3], vna[9 * i + 4], vna[9 * i + 5]);
 		vn1.set(vna[9 * i + 6], vna[9 * i + 7], vna[9 * i + 8]);
-		
+
 		vn0.x *= -1; vn0.z *= -1;
 		vn1.x *= -1; vn1.z *= -1;
 		vn2.x *= -1; vn2.z *= -1;
-			
+
 		vn0.normalize();
 		vn1.normalize();
 		vn2.normalize();
@@ -567,7 +590,7 @@ function Prepare_Model_For_PathTracing()
 		vp0.x *= -1; vp0.z *= -1;
 		vp1.x *= -1; vp1.z *= -1;
 		vp2.x *= -1; vp2.z *= -1;
-			
+
 		vp0.scaleInPlace(modelInitialScale);
 		vp1.scaleInPlace(modelInitialScale);
 		vp2.scaleInPlace(modelInitialScale);
@@ -577,7 +600,7 @@ function Prepare_Model_For_PathTracing()
 
 		//slot 0
 		triangle_array[32 * i + 0] = vp0.x; // r or x
-		triangle_array[32 * i + 1] = vp0.y; // g or y 
+		triangle_array[32 * i + 1] = vp0.y; // g or y
 		triangle_array[32 * i + 2] = vp0.z; // b or z
 		triangle_array[32 * i + 3] = vp1.x; // a or w
 
@@ -614,7 +637,7 @@ function Prepare_Model_For_PathTracing()
 		// the remaining slots are used for PBR material properties
 
 		// //slot 6
-		// triangle_array[32 * i + 24] = material.type; // r or x 
+		// triangle_array[32 * i + 24] = material.type; // r or x
 		// triangle_array[32 * i + 25] = material.color.r; // g or y
 		// triangle_array[32 * i + 26] = material.color.g; // b or z
 		// triangle_array[32 * i + 27] = material.color.b; // a or w
@@ -626,7 +649,7 @@ function Prepare_Model_For_PathTracing()
 		// triangle_array[32 * i + 31] = 0; // a or w
 
 
-		
+
 
 
 		// build an AABB around every triangle in the model
@@ -659,14 +682,14 @@ function Prepare_Model_For_PathTracing()
 	} // end for (let i = 0; i < total_number_of_triangles; i++)
 
 
-	// Build the BVH acceleration structure, which places a bounding box ('root' of the tree) around all of the 
+	// Build the BVH acceleration structure, which places a bounding box ('root' of the tree) around all of the
 	// triangles of the entire mesh, then subdivides each box into 2 smaller boxes.  It continues until it reaches 1 triangle,
 	// which it then designates as a 'leaf'
 	BVH_Build_Iterative(totalWork, aabb_array);
 
 	// once the aabb_array (BVH tree of boxes) is in a GPU-friendly format, create the aabbDataTexture which
-	// will get fed to the GPU as a texture uniform. The GPU's BVH ray-caster inside the pathtracing shader's 
-	// SceneIntersect() function will utilize the BVH tree data that is stored on the following data texture.  
+	// will get fed to the GPU as a texture uniform. The GPU's BVH ray-caster inside the pathtracing shader's
+	// SceneIntersect() function will utilize the BVH tree data that is stored on the following data texture.
 	aabbDataTexture = BABYLON.RawTexture.CreateRGBATexture(aabb_array,
 		2048,
 		2048,
@@ -677,10 +700,10 @@ function Prepare_Model_For_PathTracing()
 		BABYLON.Constants.TEXTURETYPE_FLOAT);
 
 	// Likewise, a triangleDataTexture is created to store all the model's vertex data for each triangle. This
-	// includes info like vertex positions, vertex normals, vertex UVs, material/texture IDs, etc.  If the GPU BVH 
-	// ray-caster successfully walks the BVH tree and intersects any triangle from the model and also determines 
+	// includes info like vertex positions, vertex normals, vertex UVs, material/texture IDs, etc.  If the GPU BVH
+	// ray-caster successfully walks the BVH tree and intersects any triangle from the model and also determines
 	// that this intersection has the closest ray t value, then the triangle's integer ID is used to quickly look up
-	// the matching entry on the following triangleDataTexture, in order to access its vertex properties inside the path tracer. 
+	// the matching entry on the following triangleDataTexture, in order to access its vertex properties inside the path tracer.
 	triangleDataTexture = BABYLON.RawTexture.CreateRGBATexture(triangle_array,
 		2048,
 		2048,
@@ -701,13 +724,13 @@ function Prepare_Model_For_PathTracing()
 } // end function Prepare_Model_For_PathTracing()
 
 // kickstart the loading process
-loadModel();
+loadModel(modelNameAndExtension, pathTracedMesh);
 
 
 
 // SCENE/DEMO-SPECIFIC PARAMETERS
-///camera.rotation.set(0, Math.PI, 0);
-camera.position.set(0, -20, -120);
+camera.rotation.set(0.2, 0,0);
+camera.position.set(0, 0, -120);
 camera.inertia = 0;
 camera.angularSensibility = 500;
 camFlightSpeed = 100; // scene specific, depending on scene size dimensions
@@ -717,31 +740,14 @@ const uEPS_intersect = 0.01; // value is scene-size dependent
 apertureChangeAmount = 1; // scene specific, depending on scene size dimensions
 focusDistChangeAmount = 1; // scene specific, depending on scene size dimensions
 uQuadLightPlaneSelectionNumber = 6;
-uQuadLightRadius = 50;
-uModelMaterialType = 3; // enum number code for METAL material - demo starts off with this setting for the glTF/glb model
+uQuadLightRadius = 115;
+uModelMaterialType = 4; // enum number code for METAL material - demo starts off with this setting for the glTF/glb model
 
 oldCameraMatrix = new BABYLON.Matrix();
 newCameraMatrix = new BABYLON.Matrix();
 
-// transform nodes can be instantiated only after scene has been created
-leftSphereTransformNode = new BABYLON.TransformNode();
-rightSphereTransformNode = new BABYLON.TransformNode();
 gltfModelTransformNode = new BABYLON.TransformNode();
 
-
-leftSphereTransformNode.position.set(-wallRadius * 0.45, -wallRadius + sphereRadius + 0.1, -wallRadius * 0.2);
-leftSphereTransformNode.scaling.set(sphereRadius, sphereRadius, sphereRadius);
-//leftSphereTransformNode.scaling.set(sphereRadius * 0.3, sphereRadius, sphereRadius);
-//leftSphereTransformNode.rotation.set(0, 0, Math.PI * 0.2);
-uLeftSphereInvMatrix.copyFrom(leftSphereTransformNode.getWorldMatrix());
-uLeftSphereInvMatrix.invert();
-
-rightSphereTransformNode.position.set(wallRadius * 0.45, -wallRadius + sphereRadius + 0.1, -wallRadius * 0.2);
-rightSphereTransformNode.scaling.set(sphereRadius, sphereRadius, sphereRadius);
-uRightSphereInvMatrix.copyFrom(rightSphereTransformNode.getWorldMatrix());
-uRightSphereInvMatrix.invert();
-
-///gltfModelTransformNode.rotation.set(0, Math.PI, 0);
 gltfModelTransformNode.scaling.set(0, 0, 0); // temporarily makes model invisible while it is being loaded and prepared
 
 
@@ -810,8 +816,8 @@ screenOutputEffect.onApplyObservable.add(() =>
 const pathTracingEffect = new BABYLON.EffectWrapper({
 	engine: engine,
 	fragmentShader: BABYLON.Effect.ShadersStore["pathTracingFragmentShader"],
-	uniformNames: ["uResolution", "uRandomVec2", "uULen", "uVLen", "uTime", "uFrameCounter", "uSampleCounter", "uPreviousSampleCount", "uEPS_intersect", "uCameraMatrix", 
-			"uApertureSize", "uFocusDistance", "uCameraIsMoving", "uLeftSphereInvMatrix", "uRightSphereInvMatrix", "uGLTF_Model_InvMatrix", "uQuadLightPlaneSelectionNumber", 
+	uniformNames: ["uResolution", "uRandomVec2", "uULen", "uVLen", "uTime", "uFrameCounter", "uSampleCounter", "uPreviousSampleCount", "uEPS_intersect", "uCameraMatrix",
+			"uApertureSize", "uFocusDistance", "uCameraIsMoving", "uLeftSphereInvMatrix", "uRightSphereInvMatrix", "uGLTF_Model_InvMatrix", "uQuadLightPlaneSelectionNumber",
 			"uQuadLightRadius", "uModelMaterialType", "uModelUsesAlbedoTexture", "uModelUsesBumpTexture", "uModelUsesMetallicTexture", "uModelUsesEmissiveTexture"],
 	samplerNames: ["previousBuffer", "blueNoiseTexture", "tAABBTexture", "tTriangleTexture", "tAlbedoTexture", "tBumpTexture", "tMetallicTexture", "tEmissiveTexture"],
 	name: "pathTracingEffectWrapper"
@@ -869,10 +875,10 @@ engine.runRenderLoop(function ()
 
 	if (beginningFlag && uSampleCounter == 1)
 	{
-		pixel_ResolutionController.setValue(0.75);
+		pixel_ResolutionController.setValue(1);
 		beginningFlag = false;
 	}
-	
+
 	// if GUI has been used, update
 
 	if (needChangePixelResolution)
@@ -900,35 +906,11 @@ engine.runRenderLoop(function ()
 		transform_TranslateYController.setValue(0);
 		transform_TranslateZController.setValue(0);
 
-		if (gltfModel_SelectionController.getValue() == 'Utah Teapot')
-		{
-			modelNameAndExtension = "UtahTeapot.glb";
-			modelInitialScale = 130;
-		}
-		else if (gltfModel_SelectionController.getValue() == 'Stanford Bunny')
-		{
-			modelNameAndExtension = "StanfordBunny.glb";
-			modelInitialScale = 0.05;
-		}
-		else if (gltfModel_SelectionController.getValue() == 'Stanford Dragon')
-		{
-			modelNameAndExtension = "StanfordDragon.glb";
-			modelInitialScale = 250;
-		}
-		else if (gltfModel_SelectionController.getValue() == 'glTF Duck')
-		{
-			modelNameAndExtension = "Duck.gltf";
-			modelInitialScale = 10;
-		}
-		else if (gltfModel_SelectionController.getValue() == 'Damaged Helmet')
-		{
-			modelNameAndExtension = "DamagedHelmet.gltf";
-			modelInitialScale = 15;
-			transform_RotateXController.setValue(270);
-		}
 
-		loadModel(); // load the newly selected model
+		modelNameAndExtension = "CityT-100_1000x600.glb";
+		modelInitialScale = 130;
 
+		loadModel(modelNameAndExtension, pathTracedMesh);
 		uCameraIsMoving = true;
 		needChangeGltfModelSelection = false;
 	}
@@ -1007,7 +989,7 @@ engine.runRenderLoop(function ()
 		gltfModelTransformNode.position.addInPlaceFromFloats(transform_TranslateXController.getValue(),
 			transform_TranslateYController.getValue(),
 			transform_TranslateZController.getValue());
-		
+
 		uCameraIsMoving = true;
 		needChangePosition = false;
 	}
@@ -1015,14 +997,14 @@ engine.runRenderLoop(function ()
 
 	if (needChangeScaleUniform)
 	{
-		modelUniformScale = transform_ScaleUniformController.getValue();
+		modelUniformScale = 0.04;
 
 		transform_ScaleXController.setValue(modelUniformScale);
 		transform_ScaleYController.setValue(modelUniformScale);
 		transform_ScaleZController.setValue(modelUniformScale);
 
-		gltfModelTransformNode.scaling.set(modelUniformScale, modelUniformScale, modelUniformScale);
-	
+		gltfModelTransformNode.scaling.set(0.04, 0.04, 0.04);
+
 		uCameraIsMoving = true;
 		needChangeScaleUniform = false;
 	}
@@ -1056,7 +1038,7 @@ engine.runRenderLoop(function ()
 		gltfModelTransformNode.rotation.set(transform_RotateXController.getValue() * (Math.PI / 180),
 			transform_RotateYController.getValue() * (Math.PI / 180),
 			transform_RotateZController.getValue() * (Math.PI / 180));
-		
+
 		uCameraIsMoving = true;
 		needChangeRotation = false;
 	}
@@ -1223,10 +1205,15 @@ engine.runRenderLoop(function ()
 	// update glTF model's transform
 	uGLTF_Model_InvMatrix.copyFrom(gltfModelTransformNode.getWorldMatrix());
 	uGLTF_Model_InvMatrix.invert();
-	
+
+	// var light2 = new BABYLON.HemisphericLight("Light", new BABYLON.Vector3(10, 20, 10), pathTracingRenderTarget);
+	// light2.intensity = 1
+	// var light3 = new BABYLON.HemisphericLight("Light", new BABYLON.Vector3(10, 20, 10), screenCopyRenderTarget);
+	// light3.intensity = 1
+
 
 	// CAMERA INFO
-	cameraInfoElement.innerHTML = "glTF_Model # of triangles: " + total_number_of_triangles.toFixed(0) + "<br>" + 
+	cameraInfoElement.innerHTML = "glTF_Model # of triangles: " + total_number_of_triangles.toFixed(0) + "<br>" +
 		"FOV( mousewheel ): " + (camera.fov * 180 / Math.PI).toFixed(0) + "<br>" + "Aperture( [ and ] ): " + uApertureSize.toFixed(1) +
 		"<br>" + "FocusDistance( - and + ): " + uFocusDistance.toFixed(0) + "<br>" + "Samples: " + uSampleCounter;
 
