@@ -353,7 +353,7 @@ BABYLON.Effect.IncludesShadersStore['pathtracing_defines_and_uniforms'] = `
 #define INFINITY         1000000.0
 #define SPOT_LIGHT -2
 #define POINT_LIGHT -1
-#define LIGHT 0
+#define LIGHT -2
 #define DIFFUSE 1
 #define TRANSPARENT 2
 #define METAL 3
